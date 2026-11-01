@@ -25,6 +25,6 @@ The API is available at `/health`, `/presets`, `/synthesize`, and `/synthesize-b
 
 ## Hosting
 
-The API process is intended for a Python host that supports a web process, such as a free personal deployment where available. Streamlit Community Cloud can host the testing UI separately from the API process. A Streamlit page alone is not a stable REST API, so the Android app should call `api.py` rather than scrape the Streamlit UI.
+The Streamlit testing UI uses `requirements.txt`, which intentionally contains only the reference Streamlit/Edge TTS dependencies. FastAPI and Uvicorn are isolated in `requirements-api.txt` so Streamlit's internal Starlette middleware cannot conflict with the API's Starlette version. For an API host, install with `pip install -r requirements-api.txt` and run the `Procfile` command. Streamlit Community Cloud can host `app.py` without installing the API dependencies.
 
 This backend uses Microsoft's public Edge TTS endpoint through `edge-tts`; it does not require an Azure API key. Availability and rate limits remain controlled by Microsoft. For personal use, keep the repository private and set `BACKEND_TOKEN` on the deployed API.
