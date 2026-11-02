@@ -81,19 +81,26 @@ def resolve_settings(voice_id: str, style_id: str, emotion_id: str, rate: int | 
     }
 
 
-async def synthesize_bytes(text: str, voice: str, rate: int, pitch: int) -> bytes:
+async def synthesize_bytes(text: str, voice: str, rate: int, pitch: int, attempts: int = 3) -> bytes:
     if not text or not text.strip():
         raise ValueError("Cannot synthesize an empty subtitle cue")
     rate_value = f"{rate:+d}%"
     pitch_value = f"{pitch:+d}Hz"
-    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as handle:
-        output = Path(handle.name)
-    try:
-        communicate = edge_tts.Communicate(text.strip(), voice, rate=rate_value, pitch=pitch_value)
-        await communicate.save(str(output))
-        return output.read_bytes()
-    finally:
-        output.unlink(missing_ok=True)
+    last_error: Exception | None = None
+    for attempt in range(1, max(1, attempts) + 1):
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as handle:
+            output = Path(handle.name)
+        try:
+            communicate = edge_tts.Communicate(text.strip(), voice, rate=rate_value, pitch=pitch_value)
+            await communicate.save(str(output))
+            return output.read_bytes()
+        except Exception as error:
+            last_error = error
+            if attempt < max(1, attempts):
+                await asyncio.sleep(min(2.0, 0.5 * attempt))
+        finally:
+            output.unlink(missing_ok=True)
+    raise RuntimeError(f"Edge TTS failed after {max(1, attempts)} attempts: {last_error}") from last_error
 
 
 async def synthesize_batch(cues: list[dict[str, Any]], voice: str, rate: int, pitch: int, workers: int = 15, on_progress=None) -> list[dict[str, Any]]:

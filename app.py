@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from pathlib import Path
 
 import streamlit as st
 
@@ -81,7 +82,8 @@ if st.button("Generate timestamped TTS ZIP", type="primary", disabled=srt_file i
         )
     archive = make_zip(items)
     st.success(f"Generated {len(items)}/{len(cues)} timestamped MP3 files.")
-    st.download_button("Download TTS ZIP", data=archive, file_name="tts-timestamped.zip", mime="application/zip")
+    zip_name = f"{Path(srt_file.name).stem or 'tts'}.zip"
+    st.download_button("Download TTS ZIP", data=archive, file_name=zip_name, mime="application/zip")
     manifest = [
         {key: item[key] for key in ("index", "startMs", "endMs", "text", "bytes")}
         for item in items
