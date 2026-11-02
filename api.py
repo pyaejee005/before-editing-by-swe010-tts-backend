@@ -15,6 +15,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 class Cue(BaseModel):
     index: int = 0
     text: str = Field(min_length=1, max_length=4096)
+    startMs: int = Field(default=0, ge=0)
+    endMs: int = Field(default=0, ge=0)
 
 class SynthesizeRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4096)

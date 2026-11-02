@@ -63,6 +63,14 @@ STYLE_MAP = {item["id"]: item for item in RECAP_STYLES}
 EMOTION_MAP = {item["id"]: item for item in EMOTIONS}
 
 
+def format_timestamp(ms: int) -> str:
+    total_ms = max(0, int(ms))
+    hours, remainder = divmod(total_ms, 3_600_000)
+    minutes, remainder = divmod(remainder, 60_000)
+    seconds, millis = divmod(remainder, 1_000)
+    return f"{hours:02d}-{minutes:02d}-{seconds:02d}.{millis:03d}"
+
+
 def resolve_settings(voice_id: str, style_id: str, emotion_id: str, rate: int | None = None, pitch: int | None = None) -> dict[str, Any]:
     style = STYLE_MAP.get(style_id, RECAP_STYLES[0])
     emotion = EMOTION_MAP.get(emotion_id, EMOTIONS[0])
@@ -103,7 +111,14 @@ async def synthesize_batch(cues: list[dict[str, Any]], voice: str, rate: int, pi
             completed += 1
             if on_progress:
                 await on_progress(completed, len(cues))
-        results[index] = {"index": int(cue.get("index", index)), "audioBase64": base64.b64encode(audio).decode("ascii"), "bytes": len(audio)}
+        results[index] = {
+            "index": int(cue.get("index", index)),
+            "startMs": int(cue.get("startMs", 0)),
+            "endMs": int(cue.get("endMs", 0)),
+            "text": str(cue.get("text", "")),
+            "audioBase64": base64.b64encode(audio).decode("ascii"),
+            "bytes": len(audio),
+        }
 
     await asyncio.gather(*(one(index, cue) for index, cue in enumerate(cues)))
     return [item for item in results if item is not None]
@@ -114,9 +129,9 @@ def make_zip(items: list[dict[str, Any]]) -> bytes:
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         manifest = []
         for item in items:
-            name = f"audio_{int(item['index']):05d}.mp3"
+            name = f"{format_timestamp(item['startMs'])}__{format_timestamp(item['endMs'])}.mp3"
             zf.writestr(name, base64.b64decode(item["audioBase64"]))
-            manifest.append({"index": item["index"], "file": name, "bytes": item["bytes"]})
+            manifest.append({"index": item["index"], "startMs": item["startMs"], "endMs": item["endMs"], "text": item["text"], "file": name, "bytes": item["bytes"]})
         import json
         zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
     return archive.getvalue()
